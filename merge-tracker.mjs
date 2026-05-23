@@ -155,6 +155,35 @@ function extractReportNum(reportStr) {
   return m ? parseInt(m[1]) : null;
 }
 
+const reportUrlCache = new Map();
+
+function extractReportPath(reportStr) {
+  const m = reportStr.match(/\]\(([^)]+)\)/);
+  if (!m || !m[1]) return null;
+  const filename = basename(m[1]);
+  if (!filename) return null;
+  return join(CAREER_OPS, 'reports', filename);
+}
+
+function extractReportUrl(reportStr) {
+  const reportPath = extractReportPath(reportStr);
+  if (!reportPath || !existsSync(reportPath)) return null;
+
+  if (reportUrlCache.has(reportPath)) return reportUrlCache.get(reportPath);
+
+  const content = readFileSync(reportPath, 'utf-8');
+  const match = content.match(/^\*\*URL:\*\*\s*(.+)$/m);
+  const url = match ? match[1].trim() : null;
+  reportUrlCache.set(reportPath, url);
+  return url;
+}
+
+function sameReportUrl(a, b) {
+  const urlA = extractReportUrl(a);
+  const urlB = extractReportUrl(b);
+  return Boolean(urlA && urlB && urlA === urlB);
+}
+
 function parseScore(s) {
   const m = s.replace(/\*\*/g, '').match(/([\d.]+)/);
   return m ? parseFloat(m[1]) : 0;
@@ -312,7 +341,8 @@ for (const file of tsvFiles) {
 
   // Check for duplicate by:
   // 1. Exact report number match
-  // 2. Company + role fuzzy match
+  // 2. Exact entry number match
+  // 3. Company + role fuzzy match, only when both reports point to the same URL
   const reportNum = extractReportNum(addition.report);
   let duplicate = null;
 
@@ -334,7 +364,8 @@ for (const file of tsvFiles) {
     const normCompany = normalizeCompany(addition.company);
     duplicate = existingApps.find(app => {
       if (normalizeCompany(app.company) !== normCompany) return false;
-      return roleFuzzyMatch(addition.role, app.role);
+      if (!roleFuzzyMatch(addition.role, app.role)) return false;
+      return sameReportUrl(addition.report, app.report);
     });
   }
 
@@ -355,29 +386,67 @@ for (const file of tsvFiles) {
       skipped++;
     }
   } else {
-    // New entry — use the number from the TSV
-    const entryNum = addition.num > maxNum ? addition.num : ++maxNum;
-    if (addition.num > maxNum) maxNum = addition.num;
+    // New entry — keep the num from the TSV (coordinator guarantees uniqueness)
+    const entryNum = addition.num;
+    if (entryNum > maxNum) maxNum = entryNum;
 
     const newLine = `| ${entryNum} | ${addition.date} | ${addition.company} | ${addition.role} | ${addition.score} | ${addition.status} | ${addition.pdf} | ${addition.report} | ${addition.notes} |`;
-    newLines.push(newLine);
+    newLines.push({ num: entryNum, line: newLine });
     added++;
     console.log(`➕ Add #${entryNum}: ${addition.company} — ${addition.role} (${addition.score})`);
   }
 }
 
-// Insert new lines after the header (line index of first data row)
-if (newLines.length > 0) {
-  // Find header separator (|---|...) and insert after it
-  let insertIdx = -1;
+// Rebuild the file with all data rows sorted by num DESCENDING.
+// This guarantees late-arriving batches (lower IDs) land in the right place.
+{
+  // Separate header lines (everything up to and including the |---| separator)
+  // from data rows and footer lines (trailing blank lines, etc.).
+  let separatorIdx = -1;
   for (let i = 0; i < appLines.length; i++) {
     if (appLines[i].includes('---') && appLines[i].startsWith('|')) {
-      insertIdx = i + 1;
+      separatorIdx = i;
       break;
     }
   }
-  if (insertIdx >= 0) {
-    appLines.splice(insertIdx, 0, ...newLines);
+
+  if (separatorIdx >= 0) {
+    const headerLines = appLines.slice(0, separatorIdx + 1);
+
+    // Collect existing data rows (already potentially mutated by in-place updates)
+    const existingDataLines = [];
+    const footerLines = [];
+    let inData = true;
+    for (let i = separatorIdx + 1; i < appLines.length; i++) {
+      const l = appLines[i];
+      // A data row starts with '|' and has a numeric first cell
+      if (inData && l.startsWith('|') && !l.includes('---')) {
+        const parsed = parseAppLine(l);
+        if (parsed) {
+          existingDataLines.push({ num: parsed.num, line: l });
+          continue;
+        }
+      }
+      // Once we stop seeing data rows, everything else is footer
+      inData = false;
+      footerLines.push(l);
+    }
+
+    // Merge new entries into the data rows pool
+    const allDataRows = [...existingDataLines, ...newLines];
+
+    // Sort descending by num (higher ID → top of table)
+    allDataRows.sort((a, b) => b.num - a.num);
+
+    const finalLines = [
+      ...headerLines,
+      ...allDataRows.map(r => r.line),
+      ...footerLines,
+    ];
+
+    // Replace appLines content for the write step below
+    appLines.length = 0;
+    appLines.push(...finalLines);
   }
 }
 

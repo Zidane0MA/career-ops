@@ -59,9 +59,14 @@ Aplicación durante la evaluación A-G:
 
 ### Paso 1 — Obtener JD
 
-1. Lee el archivo JD en `{{JD_FILE}}`
-2. Si el archivo está vacío o no existe, intenta obtener el JD desde `{{URL}}` con WebFetch
-3. Si ambos fallan, reporta error y termina
+Resolver la fuente en este orden de prioridad:
+
+1. **`{{JD_FILE}}` existe** → Leer.
+2. **`{{URL}}` = `local:jds/*`** → Leer archivo local.
+3. **`{{URL}}` externa**:
+   - LinkedIn / Tecnoempleo / InfoJobs: `node extract-jd.mjs "{{URL}}"`.
+   - Otros: Tool `WebFetch`.
+4. Si falla o no hay JD → Emitir JSON `{status: failed}` y salir.
 
 ### Paso 2 — Evaluación A-G
 
@@ -315,28 +320,28 @@ batch/tracker-additions/{{ID}}.tsv
 
 Formato TSV (una sola línea, sin header, 9 columnas tab-separated):
 ```
-{next_num}\t{{DATE}}\t{empresa}\t{rol}\t{status}\t{score}/5\t{pdf_emoji}\t[{{REPORT_NUM}}](reports/{{REPORT_NUM}}-{company-slug}-{{DATE}}.md)\t{nota_1_frase}
+{{REPORT_NUM}}\t{{DATE}}\t{empresa}\t{rol}\t{status}\t{score}/5\t{pdf_emoji}\t[{{REPORT_NUM}}](../reports/{{REPORT_NUM}}-{company-slug}-{{DATE}}.md)\t{nota_1_frase}
 ```
 
 **Columnas TSV (orden exacto):**
 
 | # | Campo | Tipo | Ejemplo | Validación |
 |---|-------|------|---------|------------|
-| 1 | num | int | `647` | Secuencial, max existente + 1 |
+| 1 | num | int | `{{REPORT_NUM}}` | Asignado por el orquestador = REPORT_NUM. NO calcular desde applications.md |
 | 2 | date | YYYY-MM-DD | `2026-03-14` | Fecha de evaluación |
 | 3 | company | string | `Datadog` | Nombre corto de empresa |
 | 4 | role | string | `Staff AI Engineer` | Título del rol |
 | 5 | status | canonical | `Evaluada` | DEBE ser canónico (ver states.yml) |
 | 6 | score | X.XX/5 | `4.55/5` | O `N/A` si no evaluable |
 | 7 | pdf | emoji | `✅` o `❌` | Si se generó PDF |
-| 8 | report | md link | `[647](reports/647-...)` | Link al report |
+| 8 | report | md link | `[647](../reports/647-...)` | Link al report |
 | 9 | notes | string | `APPLY HIGH...` | Resumen 1 frase |
 
 **IMPORTANTE:** El orden TSV tiene status ANTES de score (col 5→status, col 6→score). En applications.md el orden es inverso (col 5→score, col 6→status). merge-tracker.mjs maneja la conversión.
 
 **Estados canónicos válidos:** `Evaluada`, `Aplicado`, `Respondido`, `Entrevista`, `Oferta`, `Rechazado`, `Descartado`, `NO APLICAR`
 
-Donde `{next_num}` se calcula leyendo la última línea de `data/applications.md`.
+**RULE**: Usa `{{REPORT_NUM}}` como ID. Si no se resolvió (literal `{{REPORT_NUM}}`), ejecuta `node next-report.mjs` para obtener el ID.
 
 ### Paso 6 — Output final
 
@@ -349,7 +354,7 @@ Al terminar, imprime por stdout un resumen JSON para que el orquestador lo parse
   "report_num": "{{REPORT_NUM}}",
   "company": "{empresa}",
   "role": "{rol}",
-  "score": {score_num},
+  "score": "{score_num}",
   "legitimacy": "{High Confidence|Proceed with Caution|Suspicious}",
   "pdf": "{ruta_pdf}",
   "report": "{ruta_report}",
