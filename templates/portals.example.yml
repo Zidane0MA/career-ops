@@ -988,3 +988,147 @@ tracked_companies:
     scan_query: '"Maxim AI" OR "getmaxim" careers "engineer" OR "product"'
     notes: "AI evaluation and observability platform. Bangalore-based, mostly on-site."
     enabled: true
+
+# -- LinkedIn Scanner --
+# Playwright-based scanner that uses a persistent Chrome profile with an active
+# LinkedIn session. Discovery only — extracts job URLs, not full JDs.
+#
+# SETUP (3 steps):
+#   1. Set chrome_profile below to a DEDICATED folder (not your daily Chrome profile)
+#   2. Run: node scan-linkedin.mjs --setup
+#      → A Chrome window opens. Log into LinkedIn manually. Close the window.
+#   3. Configure geo_id and searches (see below)
+#
+# HOW TO GET YOUR geo_id:
+#   The agent CANNOT auto-detect this. You must:
+#   1. Go to linkedin.com/jobs and search for any role
+#   2. Set your desired location in the LinkedIn location filter
+#   3. Copy the URL — it contains geoId=XXXXXXXXX
+#   4. Paste that URL here or tell the agent the number
+#   Example: linkedin.com/jobs/search/?...&geoId=103374081 → geo_id: "103374081" (Madrid, Spain)
+#
+# HOW TO WRITE GOOD QUERIES:
+#   LinkedIn queries are literal — bad keywords return generic results.
+#   Before adding a query, validate it:
+#   1. Search Google for: `"your query" linkedin`
+#   2. Or run: node scan-linkedin.mjs --query "your query" --dry-run
+#   Good: "técnico de redes", "junior devops", "data engineer python"
+#   Bad:  "IT", "engineer" (too broad), "redes" (ambiguous)
+#
+# date_posted values:
+#   r86400 = last 24h | r604800 = last 7 days | r2592000 = last 30 days
+
+linkedin_searches:
+  enabled: false          # Set to true after completing setup
+  chrome_profile: ""      # REQUIRED — dedicated folder path, e.g. "C:/perfiles-chrome/playwright-linkedin"
+  geo_id: ""              # REQUIRED — from LinkedIn URL (see instructions above)
+  date_posted: "r604800"    # r86400=24h | r604800=7d | r2592000=30d
+  max_per_query: 15
+  delay_ms: 2500
+  searches: []
+  # Example searches (uncomment and customize):
+  # searches:
+  #   - query: "AI engineer"
+  #     enabled: true
+  #   - query: "solutions architect"
+  #     enabled: true
+  #   - query: "forward deployed engineer"
+  #     enabled: true
+
+# -- Indeed MCP (Global job discovery with full JD) --
+# Uses the official Indeed MCP (search_jobs tool).
+# Returns job listings with complete job descriptions from Indeed.
+# Configure your location, country code, and search queries.
+
+indeed_queries:
+  enabled: false    # Set to true to enable Indeed searching
+  location: "Madrid"
+  country_code: "ES"
+  searches:
+    # Add your search queries here
+    # Example: "python backend", "devops engineer", "AI engineer", etc.
+    - "python backend"
+    - "devops"
+    - "infraestructura IT"
+
+# -- Tecnoempleo (Spain only) --
+# Zero-token scanner for tecnoempleo.com — Spain's largest IT job board.
+# Only relevant if you're targeting the Spanish market.
+# Run: node scan-tecnoempleo.mjs (or npm run scan:tecnoempleo)
+#
+# HOW TO CONFIGURE:
+#   1. Set enabled: true
+#   2. Pick your region ID(s) from the list below
+#   3. Pick specialty IDs that match YOUR target roles
+#   4. Optional: pick experience IDs to add ex= filters
+#   5. The agent can auto-configure this from your profile.yml target_roles
+#
+# Region IDs (pr=,<id>,):
+#   263=Madrid | 240=Barcelona | 279=Valencia | 264=Málaga
+#   282=Zaragoza | 274=Sevilla | 241=Bizkaia | 235=Almería
+#   251=Gipuzkoa | 232=Álava | 234=Alicante | 280=Valladolid
+#   231=A Coruña | 266=Murcia | 267=Navarra | 270=Pontevedra
+#   236=Asturias | 245=Cantabria | 239=Baleares | 252=Girona
+#
+# Specialty IDs (es=,<id>,):
+#   12=Programador | 43=Técnico de Sistemas | 34=DevOps
+#   8=Soporte Técnico | 39=Redes | 28=Consultor
+#   37=Analista Programador | 1=Big Data | 32=Analista
+#   51=Arquitecto TIC | 40=Ciberseguridad | 25=Jefe de Proyecto
+#   52=Ingenieros/Industria | 53=Inteligencia Artificial/Machine Learning
+#   44=Tester/QA | 27=Desarrollador Web | 20=Jefe de Equipo
+#   4=Electrónica | 45=Administrador | 15=Marketing
+#   7=Desarrollador Móvil | 41=Base de Datos/DBA | 2=Técnico Software
+#   19=Helpdesk | 49=Técnico de Gestión | 24=Diseño gráfico
+#   3=Técnico Hardware | 29=Comercial | 30=Auditor
+#   10=Responsable de Producto | 48=SEO/Posicionamiento Web
+#   46=Operador | 50=Administrativo | 9=Sistemas de Calidad
+#   42=Técnico de Mantenimiento | 21=Formador | 18=I+D | 38=Migración de Datos
+#
+# Experience IDs (ex=,<ids>,):
+#   1=Sin experiencia | 2=< de 1 año | 3=1 año | 4=2 años
+#   5=3 años | 6=3-5 años | 7=> de 5 años | 8=> de 10 años
+#
+# The scanner accepts a comma-separated string or a YAML list:
+#   experience: "1,2,3,4,5"
+#   experience: ["6", "7"]
+#
+#   node scan-tecnoempleo.mjs             # scan normal
+#   node scan-tecnoempleo.mjs --dry-run   # preview sin guardar
+#   node scan-tecnoempleo.mjs --pages 2   # primeras 2 páginas
+
+tecnoempleo:
+  enabled: false    # Set to true if targeting the Spanish market
+  max_pages: 2
+  max_age_days: 45  # Discard offers older than N days. Use 30 for fresher searches, 60 for niche roles.
+  delay_ms: 1500
+  # experience: "1,2,3,4"  # Optional
+  searches:
+  # Example searches (uncomment and customize):
+  # searches:
+  #   - name: "AI & Data Madrid"
+  #     location: "263"           # Madrid
+  #     specialties: "53,12,1"    # IA/ML, Programador, Big Data
+  #     enabled: true
+  #   - name: "DevOps Madrid"
+  #     location: "263"
+  #     specialties: "34,43"      # DevOps, Técnico Sistemas
+  #     enabled: true
+
+# -- Infojobs (Spain only, opt-in) --
+# Uses Chrome MCP (browser automation) — no dedicated script.
+# The agent opens each URL in a browser session and extracts listings.
+#
+# How to get your URL:
+#   1. Go to https://www.infojobs.net and run a search with your filters
+#      (keyword, location, category, experience, date range, etc.)
+#   2. Copy the full URL from your browser's address bar
+#   3. Paste it below as the `url` value
+
+infojobs_searches:
+  enabled: false    # Set to true once your searches are configured
+  searches:
+  # Example (uncomment and replace with your own URL):
+  # searches:
+  #   - name: "AI Madrid"
+  #     url: "https://www.infojobs.net/jobsearch/search-results/list.xhtml?keyword=inteligencia+artificial&cityIds=Madrid&cityId=3533&searchByType=city&radius=15&categoryIds=150&sinceDate=_7_DAYS&sortBy=RELEVANCE"

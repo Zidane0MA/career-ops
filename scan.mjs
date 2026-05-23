@@ -173,9 +173,25 @@ function loadSeenUrls() {
 
 function loadSeenCompanyRoles() {
   const seen = new Set();
+
+  // scan-history.tsv — the source of truth for dedup (columns: url | first_seen | portal | title | company | status)
+  if (existsSync(SCAN_HISTORY_PATH)) {
+    const lines = readFileSync(SCAN_HISTORY_PATH, 'utf-8').split('\n');
+    for (const line of lines.slice(1)) { // skip header
+      const parts = line.split('\t');
+      if (parts.length >= 5) {
+        const title = parts[3]?.trim().toLowerCase();
+        const company = parts[4]?.trim().toLowerCase();
+        if (title && company) {
+          seen.add(`${company}::${title}`);
+        }
+      }
+    }
+  }
+
+  // Also check applications.md for completeness (in case of offline edits)
   if (existsSync(APPLICATIONS_PATH)) {
     const text = readFileSync(APPLICATIONS_PATH, 'utf-8');
-    // Parse markdown table rows: | # | Date | Company | Role | ...
     for (const match of text.matchAll(/\|[^|]+\|[^|]+\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|/g)) {
       const company = match[1].trim().toLowerCase();
       const role = match[2].trim().toLowerCase();
@@ -184,6 +200,7 @@ function loadSeenCompanyRoles() {
       }
     }
   }
+
   return seen;
 }
 

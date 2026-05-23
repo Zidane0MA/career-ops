@@ -23,7 +23,74 @@ Leer `portals.yml` que contiene:
 - `tracked_companies`: Empresas específicas con `careers_url` para navegación directa
 - `title_filter`: Keywords positive/negative/seniority_boost para filtrado de títulos
 
-## Estrategia de descubrimiento (3 niveles)
+## Estrategia de descubrimiento (Únicos + 3 niveles)
+
+### Escáneres externos — worker único (Tecnoempleo + LinkedIn)
+
+Si **al menos uno** de `tecnoempleo.enabled: true` o `linkedin_searches.enabled: true` está activo en `portals.yml`, despachar **un único worker** en background que ejecute secuencialmente los scripts habilitados:
+
+```
+Worker(
+  prompt="Lee portals.yml. Ejecuta secuencialmente los scripts habilitados:
+    - Si tecnoempleo.enabled es true → `node scan-tecnoempleo.mjs`
+    - Si linkedin_searches.enabled es true → `node scan-linkedin.mjs`
+  Devuelve el resumen combinado de resultados, No extraer JD.",
+  run_in_background=True
+)
+```
+
+No lanzar el worker si ninguno de los dos está habilitado. Si la sección correspondiente **no existe** en `portals.yml`, preguntar al usuario si desea configurarla (seguir `docs/SETUP.md`).
+
+Cada script lee su configuración de `portals.yml`, aplica `title_filter`, deduplica contra `scan-history.tsv` + `pipeline.md` + `applications.md`, y añade resultados nuevos al pipeline.
+
+#### Tecnoempleo — **Spain-only, opt-in.** No ejecutar si `tecnoempleo.enabled` es `false` o la sección no existe.
+
+#### LinkedIn — No ejecutar si `linkedin_searches.enabled` es `false` o la sección no existe.
+
+---
+
+### Nivel InfoJobs — Chrome MCP (contexto de chat limpio)
+
+⚠️ **Solo disponible en contexto principal.** Si scan se ejecuta como subagente, este nivel se **OMITE automáticamente**. Para escanear InfoJobs, invocar `/career-ops scan infojobs` directamente en contexto principal.
+
+Si el MCP `mcp__Claude_in_Chrome` o similar está disponible **y** `portals.yml → infojobs_searches.enabled: true`, ejecutar este nivel. Requiere sesión activa en InfoJobs.
+
+**Instrucciones completas:** leer `templates/infojobs-scan.md` (scroll, extracción JS, dedup y pipeline).
+
+---
+
+### Nivel Indeed MCP (JD COMPLETO INCLUIDO)
+
+Si el MCP oficial `search_jobs` (Indeed) está disponible en la sesión, **ejecutarlo en un worker dedicado**.
+
+**Para cada query en `portals.yml → indeed_queries.searches`** (si `indeed_queries.enabled: true`):
+
+1. Llamar `search_jobs(search=query, location=indeed_queries.location, country_code=indeed_queries.country_code)`
+2. Para cada resultado que pase `title_filter`:
+   a. Generar slug: `indeed-{company}-{titulo}`
+      - Normalizar: minúsculas, espacios → guiones, quitar caracteres especiales, quitar tildes
+      - **Importante: no exceder 40 caracteres, si se excede acortar el título**
+      - Precisión absoluta al generar slug. Usar exactamente el mismo algoritmo siempre.
+   b. **Dedup por slug** — si `local:jds/{slug}.md` ya existe en `scan-history.tsv` O el archivo `jds/{slug}.md` ya existe en disco → duplicado → registrar como `skipped_dup` y saltar. **No usar el `job_id` devuelto por el MCP** — el algoritmo de Indeed cambia entre versiones y los IDs no son estables entre scans.
+   c. Llamar `get_job_details(job_id)` para obtener JD completo con salario
+   d. Guardar JD en `jds/{slug}.md` con esta cabecera estándar:
+      ```markdown
+      # {titulo}
+
+      **Empresa:** {company}
+      **Ubicación:** {location}
+      **Salario:** {compensation o "No especificado"}
+      **Tipo contrato:** {job_type o "No especificado"}
+      **Publicado:** {posted_on}
+      **Apply:** {apply_link}
+      **Fuente:** indeed-mcp
+
+      ---
+
+      {job_description completo}
+      ```
+   e. Añadir a pipeline: `- [ ] local:jds/{slug}.md | {company} | {title}`
+   f. Registrar en `scan-history.tsv`: `local:jds/{slug}.md\t{date}\tindeed-mcp\t{title}\t{company}\tadded`
 
 ### Nivel 1 — Playwright directo (PRINCIPAL)
 
@@ -188,12 +255,13 @@ Ofertas encontradas: N total
 Filtradas por título: N relevantes
 Duplicadas: N (ya evaluadas o en pipeline)
 Expiradas descartadas: N (links muertos, Nivel 3)
-Nuevas añadidas a pipeline.md: N
+Nuevas añadidas a pipeline.md: N (Tier A) + N (Tier B — InfoJobs)
 
   + {company} | {title} | {query_name}
   ...
 
 → Ejecuta /career-ops pipeline para evaluar las nuevas ofertas.
+→ Las ofertas Tier B (InfoJobs) requieren evaluación manual en un chat nuevo con Chrome MCP activo.
 ```
 
 ## Gestión de careers_url
