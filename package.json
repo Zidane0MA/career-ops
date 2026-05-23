@@ -15,7 +15,10 @@
     "rollback": "node update-system.mjs rollback",
     "liveness": "node check-liveness.mjs",
     "scan": "node scan.mjs",
-    "gemini:eval": "node gemini-eval.mjs"
+    "gemini:eval": "node gemini-eval.mjs",
+    "scan:tecno": "node scan-tecnoempleo.mjs",
+    "scan:in": "node scan-linkedin.mjs",
+    "scan:all": "npm run scan && npm run scan:tecno && npm run scan:in"
   },
   "keywords": [
     "ai",

@@ -63,17 +63,18 @@ Ejemplos de reformulación legítima:
 
 ## Template HTML
 
-Usar el template en `cv-template.html`. Reemplazar los placeholders `{{...}}` con contenido personalizado:
+Usar el template en `templates/cv-template.html`. Reemplazar los placeholders `{{...}}` con contenido personalizado:
 
 | Placeholder | Contenido |
 |-------------|-----------|
 | `{{LANG}}` | `en` o `es` |
-| `{{PAGE_WIDTH}}` | `8.5in` (letter) o `210mm` (A4) |
 | `{{NAME}}` | (from profile.yml) |
 | `{{PHONE}}` | (from profile.yml — include with its separator only when `profile.yml` has a non-empty `phone` value; omit both `<span>` and `<span class="separator">` otherwise) |
 | `{{EMAIL}}` | (from profile.yml) |
 | `{{LINKEDIN_URL}}` | [from profile.yml] |
 | `{{LINKEDIN_DISPLAY}}` | [from profile.yml] |
+| `{{GITHUB_URL}}` | [from profile.yml] (formatted as https://...) |
+| `{{GITHUB_DISPLAY}}` | [from profile.yml] |
 | `{{PORTFOLIO_URL}}` | [from profile.yml] (o /es según idioma) |
 | `{{PORTFOLIO_DISPLAY}}` | [from profile.yml] (o /es según idioma) |
 | `{{LOCATION}}` | [from profile.yml] |
@@ -91,6 +92,10 @@ Usar el template en `cv-template.html`. Reemplazar los placeholders `{{...}}` co
 | `{{CERTIFICATIONS}}` | HTML de certificaciones |
 | `{{SECTION_SKILLS}}` | Skills / Competencias |
 | `{{SKILLS}}` | HTML de skills |
+
+**IMPORTANTE: Limpieza de enlaces vacíos**
+Si un campo de contacto (`PORTFOLIO_URL`, `GITHUB_URL`) está vacío en `profile.yml`, **ELIMINA** tanto el tag `<a>` como el `<span class="separator">|</span>` contiguo de la `contact-row` para que no queden separadores sueltos o enlaces rotos.
+
 
 ## Canva CV Generation (optional)
 

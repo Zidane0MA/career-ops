@@ -65,6 +65,10 @@ AI-powered, CLI-agnostic job search automation: pipeline tracking, offer evaluat
 | `followup-cadence.mjs` | Follow-up cadence calculator (JSON output) |
 | `data/follow-ups.md` | Follow-up history tracker |
 | `scan.mjs` | Zero-token portal scanner — hits Greenhouse/Ashby/Lever APIs directly, zero LLM cost |
+| `scan-linkedin.mjs` | Zero-token LinkedIn scanner |
+| `scan-tecnoempleo.mjs` | Zero-token Tecnoempleo scanner |
+| `extract-jd.mjs` | Extracts JDs from LinkedIn/Tecnoempleo/Infojobs. Returns JSON to stdout. Batch multi-URL with `--delay-ms`. |
+| `next-report.mjs` | Gets the next report number |
 | `check-liveness.mjs` | Job posting liveness checker |
 | `liveness-core.mjs` | Shared liveness logic (expired signals win over generic Apply text) |
 | `reports/` | Evaluation reports (format: `{###}-{company-slug}-{YYYY-MM-DD}.md`). Blocks A-F + G (Posting Legitimacy). Header includes `**Legitimacy:** {tier}`. |
@@ -110,6 +114,12 @@ If `portals.yml` is missing:
 > "I'll set up the job scanner with 45+ pre-configured companies. Want me to customize the search keywords for your target roles?"
 
 Copy `templates/portals.example.yml` → `portals.yml`. If they gave target roles in Step 2, update `title_filter.positive` to match.
+
+**External Scanners (Opt-in only):** Offer additional scanners based on the user's location. For global users: LinkedIn and Indeed. For Spain: also Tecnoempleo and InfoJobs.
+> "Want to enable additional scanners? I can help you set up LinkedIn, Indeed, [and Tecnoempleo/InfoJobs if in Spain]."
+
+If yes → read the corresponding section in `docs/SETUP.md` and guide them through the configuration. If their existing `portals.yml` is missing the required configuration blocks, read `templates/portals.example.yml` as a reference to copy the correct structure over.
+**CRITICAL: NEVER enable or configure ANY scanner automatically.** The user must explicitly opt-in and complete the setup steps.
 
 #### Step 4: Tracker
 If `data/applications.md` doesn't exist, create it:
@@ -276,7 +286,7 @@ When spawning headless workers for batch processing, use the appropriate command
 - Output in `output/` (gitignored), Reports in `reports/`
 - JDs in `jds/` (referenced as `local:jds/{file}` in pipeline.md)
 - Batch in `batch/` (gitignored except scripts and prompt)
-- Report numbering: sequential 3-digit zero-padded, max existing + 1
+- Use `node next-report.mjs` to reserve the next number.
 - **RULE: After each batch of evaluations, run `node merge-tracker.mjs`** to merge tracker additions and avoid duplications.
 - **RULE: NEVER create new entries in applications.md if company+role already exists.** Update the existing entry.
 

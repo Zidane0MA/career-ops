@@ -99,7 +99,7 @@ func ParseApplications(careerOpsPath string) []model.CareerApplication {
 		// Parse report link
 		if rm := reReportLink.FindStringSubmatch(fields[7]); rm != nil {
 			app.ReportNumber = rm[1]
-			app.ReportPath = rm[2]
+			app.ReportPath = strings.TrimPrefix(rm[2], "../")
 		}
 
 		// Notes (field 8 if exists)
@@ -505,7 +505,8 @@ func NormalizeStatus(raw string) string {
 
 // LoadReportSummary extracts key fields from a report file.
 func LoadReportSummary(careerOpsPath, reportPath string) (archetype, tldr, remote, comp string) {
-	fullPath := filepath.Join(careerOpsPath, reportPath)
+	cleanReportPath := strings.TrimPrefix(reportPath, "../")
+	fullPath := filepath.Join(careerOpsPath, cleanReportPath)
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		return

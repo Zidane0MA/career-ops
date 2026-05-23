@@ -146,17 +146,12 @@ async function generatePDF() {
     // Wait for fonts to load
     await page.evaluate(() => document.fonts.ready);
 
-    // Generate PDF
+    // Generate PDF — margins are defined in @page CSS of the template,
+    // not here, so the browser preview matches the PDF output exactly.
     const pdfBuffer = await page.pdf({
       format: format,
       printBackground: true,
-      margin: {
-        top: '0.6in',
-        right: '0.6in',
-        bottom: '0.6in',
-        left: '0.6in',
-      },
-      preferCSSPageSize: false,
+      preferCSSPageSize: true,
     });
 
     // Write PDF
