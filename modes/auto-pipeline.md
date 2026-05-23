@@ -4,13 +4,16 @@ Cuando el usuario pega un JD (texto o URL) sin sub-comando explícito, ejecutar 
 
 ## Paso 0 — Extraer JD
 
-Si el input es una **URL** (no texto de JD pegado), seguir esta estrategia para extraer el contenido:
+Si el input es una **URL** (no texto de JD pegado), seguir esta estrategia para extraer el contenido según el portal:
 
-**Orden de prioridad:**
-
-1. **Playwright (preferido):** La mayoría de portales de empleo (Lever, Ashby, Greenhouse, Workday) son SPAs. Usar `browser_navigate` + `browser_snapshot` para renderizar y leer el JD.
-2. **WebFetch (fallback):** Para páginas estáticas (ZipRecruiter, WeLoveProduct, company career pages).
-3. **WebSearch (último recurso):** Buscar título del rol + empresa en portales secundarios que indexan el JD en HTML estático.
+- **LinkedIn**: Ejecutar el script `node extract-jd.mjs "{URL}"` (este script maneja la autenticación y extracción).
+- **Indeed**: Usar las herramientas del MCP de `indeed` si están disponibles.
+- **InfoJobs**: Ejecutar el script `node extract-jd.mjs "{URL}"` (Playwright con perfil persistente, fallback a WebFetch).
+- **Tecnoempleo**: Ejecutar el script `node extract-jd.mjs "{URL}"` (fetch nativo con headers anti-Cloudflare; no requiere Playwright).
+- **Resto de portales**: Seguir este orden de prioridad:
+  1. **Playwright (preferido):** La mayoría de portales de empleo (Lever, Ashby, Greenhouse, Workday) son SPAs. Usar `browser_navigate` + `browser_snapshot` para renderizar y leer el JD.
+  2. **WebFetch (fallback):** Para páginas estáticas (ZipRecruiter, WeLoveProduct, company career pages).
+  3. **WebSearch (último recurso):** Buscar título del rol + empresa en portales secundarios que indexan el JD en HTML estático.
 
 **Si ningún método funciona:** Pedir al candidato que pegue el JD manualmente o comparta un screenshot.
 
