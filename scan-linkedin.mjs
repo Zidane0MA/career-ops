@@ -51,7 +51,7 @@ function loadSeenUrls() {
 
   if (existsSync(PIPELINE_PATH)) {
     const text = readFileSync(PIPELINE_PATH, 'utf-8');
-    for (const m of text.matchAll(/- \[[ x]\] (local:\S+|https?:\/\/\S+)/g)) {
+    for (const m of text.matchAll(/- \[[ x]\][^\n]*?(local:\S+|https?:\/\/\S+)/g)) {
       addKey(m[1]);
     }
   }

@@ -277,7 +277,7 @@ function loadSeenUrls() {
     });
   }
   if (existsSync(PIPELINE_PATH)) {
-    for (const m of readFileSync(PIPELINE_PATH, 'utf-8').matchAll(/- \[[ x]\] (https?:\/\/\S+)/g))
+    for (const m of readFileSync(PIPELINE_PATH, 'utf-8').matchAll(/- \[[ x]\][^\n]*?(https?:\/\/\S+)/g))
       seen.add(m[1]);
   }
   if (existsSync(APPLICATIONS)) {

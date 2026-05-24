@@ -155,7 +155,7 @@ function loadSeenUrls() {
   // pipeline.md — extract URLs from checkbox lines
   if (existsSync(PIPELINE_PATH)) {
     const text = readFileSync(PIPELINE_PATH, 'utf-8');
-    for (const match of text.matchAll(/- \[[ x]\] (https?:\/\/\S+)/g)) {
+    for (const match of text.matchAll(/- \[[ x]\][^\n]*?(https?:\/\/\S+)/g)) {
       seen.add(match[1]);
     }
   }
