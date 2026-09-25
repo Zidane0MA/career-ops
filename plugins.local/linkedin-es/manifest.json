@@ -1,0 +1,13 @@
+{
+  "id": "linkedin-es",
+  "name": "linkedin-es",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "description": "LinkedIn job search for Spain via the public guest endpoint — no login, no browser; part-time, internship and remote filters.",
+  "hooks": ["provider"],
+  "requiredEnv": [],
+  "allowedHosts": ["www.linkedin.com"],
+  "skill": "skill.md",
+  "humanInTheLoop": true,
+  "homepage": "https://github.com/Zidane0MA/career-ops"
+}

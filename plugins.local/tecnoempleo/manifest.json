@@ -1,0 +1,13 @@
+{
+  "id": "tecnoempleo",
+  "name": "tecnoempleo",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "description": "Tecnoempleo.com (Spanish IT job board) scanner — province, specialty, experience, media jornada and remote filters.",
+  "hooks": ["provider"],
+  "requiredEnv": [],
+  "allowedHosts": ["www.tecnoempleo.com"],
+  "skill": "skill.md",
+  "humanInTheLoop": true,
+  "homepage": "https://github.com/Zidane0MA/career-ops"
+}
