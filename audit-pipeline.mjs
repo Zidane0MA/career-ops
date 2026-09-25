@@ -57,7 +57,7 @@ function parsePipeline(text) {
   const entries = new Map();
   const lines = text.split(/\r?\n/);
   // Pattern: - [x] #NNN | url | Company | Role | score | PDF ✅/❌
-  const re = /^\s*-\s+\[.\]\s+#(\d+)\s+\|\s+(.+?)\s+\|\s+(.+?)\s+\|\s+(.+?)\s+\|\s+([\d.]+\/5)\s+\|\s+PDF\s+([✅❌])/;
+  const re = /^\s*-\s+\[.\]\s+#(\d+)\s+\|\s+(.+?)\s+\|\s+(.+?)\s+\|\s+(.+?)\s+\|\s+([\d.]+\/5|N\/A|-)\s+\|\s+PDF\s+([✅❌])/;
   lines.forEach((line, i) => {
     const m = line.match(re);
     if (!m) return;

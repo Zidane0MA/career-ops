@@ -41,6 +41,29 @@ function run(cmd, args = [], opts = {}) {
 
 function fileExists(path) { return existsSync(join(ROOT, path)); }
 function readFile(path) { return readFileSync(join(ROOT, path), 'utf-8'); }
+function hashFile(path) { return createHash('sha256').update(readFileSync(join(ROOT, path))).digest('hex'); }
+
+// Run a script and return its exit code (null if it never ran). Needed because
+// run() collapses every failure to null, which hides the exit code.
+function runExit(cmd, args) {
+  try {
+    execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf-8', timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] });
+    return 0;
+  } catch (e) {
+    return typeof e.status === 'number' ? e.status : null;
+  }
+}
+
+// Fingerprint the user's real data BEFORE anything runs. Section 2 executes the
+// pipeline scripts for real, and section 12 asserts they changed nothing.
+const USER_DATA = ['data/applications.md', 'data/pipeline.md', 'data/scan-history.tsv'];
+const userDataBefore = new Map();
+for (const f of USER_DATA) if (fileExists(f)) userDataBefore.set(f, hashFile(f));
+
+// A .bak is a mutating script's own pre-write backup. One appearing during the
+// run is proof the suite wrote to real data; pre-existing ones aren't ours.
+const BAK_FILES = ['data/applications.md.bak', 'applications.md.bak'];
+const baksBefore = new Set(BAK_FILES.filter(fileExists));
 
 console.log('\n🧪 career-ops test suite\n');
 
@@ -62,23 +85,30 @@ for (const f of mjsFiles) {
 
 console.log('\n2. Script execution (graceful on empty data)');
 
+// normalize-statuses, dedup-tracker and merge-tracker rewrite applications.md
+// in place. Without --dry-run this "test" performed a real dedup against the
+// user's tracker and silently pruned rows. Every write in all three is guarded
+// by their DRY_RUN flag, so the flag makes the suite read-only; section 12
+// enforces that. Add --dry-run to any future script that writes.
 const scripts = [
-  { name: 'cv-sync-check.mjs', expectExit: 1, allowFail: true }, // fails without cv.md (normal in repo)
-  { name: 'verify-pipeline.mjs', expectExit: 0 },
-  { name: 'normalize-statuses.mjs', expectExit: 0 },
-  { name: 'dedup-tracker.mjs', expectExit: 0 },
-  { name: 'merge-tracker.mjs', expectExit: 0 },
-  { name: 'update-system.mjs check', expectExit: 0 },
+  // 0 when a cv.md is present, 1 without one (normal in a bare checkout).
+  { name: 'cv-sync-check.mjs', okExits: [0, 1] },
+  { name: 'verify-pipeline.mjs', okExits: [0] },
+  { name: 'normalize-statuses.mjs', args: ['--dry-run'], okExits: [0] },
+  { name: 'dedup-tracker.mjs', args: ['--dry-run'], okExits: [0] },
+  { name: 'merge-tracker.mjs', args: ['--dry-run'], okExits: [0] },
+  { name: 'update-system.mjs', args: ['check'], okExits: [0] },
 ];
 
-for (const { name, allowFail } of scripts) {
-  const result = run('node', name.split(' '), { stdio: ['pipe', 'pipe', 'pipe'] });
-  if (result !== null) {
-    pass(`${name} runs OK`);
-  } else if (allowFail) {
-    warn(`${name} exited with error (expected without user data)`);
+for (const { name, args = [], okExits } of scripts) {
+  const label = [name, ...args].join(' ');
+  const code = runExit('node', [name, ...args]);
+  if (code === null) {
+    fail(`${label} never ran (spawn error or timeout)`);
+  } else if (okExits.includes(code)) {
+    pass(`${label} exits ${code}`);
   } else {
-    fail(`${name} crashed`);
+    fail(`${label} exited ${code}, expected ${okExits.join(' or ')}`);
   }
 }
 
@@ -330,6 +360,84 @@ if (fileExists('VERSION')) {
 } else {
   fail('VERSION file missing');
 }
+
+// ── 11. REPORT LINK PATHS ────────────────────────────────────────
+
+console.log('\n11. Report link paths');
+
+// The tracker lives in data/, so its report links resolve from data/. A bare
+// `reports/...` prefix silently points at data/reports/ and makes
+// verify-pipeline report "Report not found" for a report that exists.
+
+// Spec guard — runs in CI, where the tracker itself is gitignored and absent.
+const specFiles = ['AGENTS.md', 'modes/ru/oferta.md'];
+let badSpecs = 0;
+for (const f of specFiles) {
+  if (!fileExists(f)) continue;
+  if (/\]\((?:\.\/)?reports\//.test(readFile(f))) {
+    fail(`${f}: report link spec uses bare "reports/" (should be "../reports/")`);
+    badSpecs++;
+  }
+}
+if (badSpecs === 0) pass('Docs spec report links as ../reports/');
+
+// Data guard — every link in the tracker must resolve from the tracker's dir.
+const APPS = 'data/applications.md';
+if (!fileExists(APPS)) {
+  pass('No tracker yet — report link resolution not applicable');
+} else {
+  const appsDir = dirname(join(ROOT, APPS));
+  let brokenLinks = 0;
+  let checkedLinks = 0;
+  for (const line of readFile(APPS).split('\n')) {
+    if (!line.startsWith('|')) continue;
+    const parts = line.split('|').map(s => s.trim());
+    if (parts.length < 9) continue;
+    const num = parseInt(parts[1]);
+    if (isNaN(num)) continue;
+    const link = parts[8].match(/\]\(([^)]+)\)/);
+    if (!link) continue;
+    checkedLinks++;
+    if (!existsSync(join(appsDir, link[1]))) {
+      fail(`#${num}: report link does not resolve from ${APPS}: ${link[1]}`);
+      brokenLinks++;
+    }
+  }
+  if (brokenLinks === 0) pass(`All ${checkedLinks} report links resolve from ${APPS}`);
+}
+
+// ── 12. USER DATA IMMUTABILITY ──────────────────────────────────
+
+console.log('\n12. User data immutability');
+
+// Regression guard for a real data-loss bug: section 2 ran the pipeline scripts
+// without --dry-run, so `node test-all.mjs` — the command AGENTS.md tells
+// contributors to run before pushing — silently deleted 23 rows from a live
+// 440-row tracker. Running the tests must never change the user's data.
+if (userDataBefore.size === 0) {
+  pass('No user data present — nothing the suite could mutate');
+} else {
+  let mutated = 0;
+  for (const [f, before] of userDataBefore) {
+    if (!fileExists(f)) {
+      fail(`Suite DELETED ${f}`);
+      mutated++;
+    } else if (hashFile(f) !== before) {
+      fail(`Suite MUTATED ${f} — a pipeline script in section 2 is missing --dry-run`);
+      mutated++;
+    }
+  }
+  if (mutated === 0) pass(`Suite left ${userDataBefore.size} user data file(s) byte-identical`);
+}
+
+let newBaks = 0;
+for (const f of BAK_FILES) {
+  if (fileExists(f) && !baksBefore.has(f)) {
+    fail(`Suite created ${f} — a pipeline script wrote to real data`);
+    newBaks++;
+  }
+}
+if (newBaks === 0) pass('Suite left no .bak artifacts behind');
 
 // ── SUMMARY ─────────────────────────────────────────────────────
 

@@ -433,6 +433,11 @@ async function main() {
 
       if (seenUrls.has(liKey) || seenUrls.has(liPrefix) || seenUrls.has(legacyLocalKey)) {
         totalDupes++;
+        if (dryRun) {
+          const details = summaries.get(jobId);
+          const label = details ? `${details.company} | ${details.title}` : jobId;
+          console.log(`  ~ Duplicate: ${label}`);
+        }
         continue;
       }
 
@@ -453,6 +458,9 @@ async function main() {
       const roleKey = `${details.company.toLowerCase()}::${details.title.toLowerCase()}`;
       if (seenCompanyRoles.has(roleKey)) {
         totalDupes++;
+        if (dryRun) {
+          console.log(`  ~ Duplicate (company+role): ${details.company} | ${details.title}`);
+        }
         continue;
       }
 

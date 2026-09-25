@@ -89,7 +89,7 @@ Si no hay URL o está marcada como `-`, omitir este paso para ese ID.
 
 **Si la URL es local** (`local:jds/{slug}.md`):
 - Usar `local:jds/{slug}.md` como clave de dedup (igual que hace el scanner)
-- Comprobar si ya existe: buscar esa cadena en `data/scan-history.tsv`
+- Comprobar si ya existe: comando de búsqueda sobre `data/scan-history.tsv`
 - **Solo si no existe**, añadir al inicio:
   ```
   local:jds/{slug}.md\t{YYYY-MM-DD}\t{portal}\t{role}\t{company}
@@ -97,7 +97,7 @@ Si no hay URL o está marcada como `-`, omitir este paso para ese ID.
 
 **Si la URL es remota** (`https://...`):
 - Usar la URL directamente como clave
-- Comprobar si ya existe en `data/scan-history.tsv`
+- Comprobar si ya existe: Usa comando de búsqueda sobre `data/scan-history.tsv`
 - **Solo si no existe**, añadir al inicio:
   ```
   {url}\t{YYYY-MM-DD}\t{portal}\t{role}\t{company}

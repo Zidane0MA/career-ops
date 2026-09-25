@@ -151,7 +151,7 @@
 Для **новой** записи не редактировать `data/applications.md` напрямую. Вместо этого записать одну TSV-строку в `batch/tracker-additions/{num}-{company-slug}.tsv` с 8 или 9 колонками через табуляцию:
 
 ```
-{num}\t{date}\t{company}\t{role}\t{status}\t{score}\t{pdf_emoji}\t[{num}](reports/{num}-{slug}-{date}.md)\t{note}
+{num}\t{date}\t{company}\t{role}\t{status}\t{score}\t{pdf_emoji}\t[{num}](../reports/{num}-{slug}-{date}.md)\t{note}
 ```
 
 - `{num}` = следующий порядковый номер (целое число, вычислить из `reports/`)

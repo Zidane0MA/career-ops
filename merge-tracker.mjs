@@ -15,7 +15,7 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync, existsSync } from 'fs';
-import { join, basename, dirname } from 'path';
+import { join, basename, dirname, relative, sep } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 
@@ -26,6 +26,11 @@ const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
   : join(CAREER_OPS, 'applications.md');
 const ADDITIONS_DIR = join(CAREER_OPS, 'batch/tracker-additions');
 const MERGED_DIR = join(ADDITIONS_DIR, 'merged');
+const REPORTS_DIR = join(CAREER_OPS, 'reports');
+// Report links resolve relative to the tracker's own directory, which differs
+// per layout: data/applications.md needs ../reports/, root applications.md
+// needs reports/. Derived, not hardcoded, so both layouts stay correct.
+const REPORT_PREFIX = relative(dirname(APPS_FILE), REPORTS_DIR).split(sep).join('/');
 const DRY_RUN = process.argv.includes('--dry-run');
 const VERIFY = process.argv.includes('--verify');
 
@@ -155,6 +160,15 @@ function extractReportNum(reportStr) {
   return m ? parseInt(m[1]) : null;
 }
 
+// Re-anchor a report link to the tracker's directory. Agents keep emitting the
+// bare `reports/` prefix that older docs specified, which resolves to
+// data/reports/ and trips verify-pipeline's "Report not found" check.
+// Idempotent: a link already carrying the right prefix is rewritten to itself.
+function normalizeReportLink(reportStr) {
+  if (!reportStr) return reportStr;
+  return reportStr.replace(/\]\((?:\.{1,2}\/)*reports\//, `](${REPORT_PREFIX}/`);
+}
+
 const reportUrlCache = new Map();
 
 function extractReportPath(reportStr) {
@@ -280,6 +294,8 @@ function parseTsvContent(content, filename) {
     console.warn(`⚠️  Skipping ${filename}: invalid entry number`);
     return null;
   }
+
+  addition.report = normalizeReportLink(addition.report);
 
   return addition;
 }

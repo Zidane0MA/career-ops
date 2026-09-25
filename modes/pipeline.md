@@ -13,7 +13,7 @@ Process job URLs stored in `data/pipeline.md`. The user adds URLs at any time an
    - **NO pre-extraer JDs** - El subagente/worker RESUELVE sus propias fuentes de JD (ver `batch/batch-prompt.md` Paso 1).
    - **Ejecutar auto-pipeline completo**: Evaluación A-G → Report .md → PDF (si score ≥ 3.0) → Tracker.
    - **Cada subagente genera su TSV** en `batch/tracker-additions/`.
-   - Error en una URL → marcar `- [!]` con nota y continuar con las demás del bucket.
+   - Error en una URL → NO agregar al tsv para mergear NI crear reporte.
 5. **SPAs y otras (contexto principal)**: extraer JD con Chrome MCP → A-G + PDF (si score ≥ 3.0) + TSV.
 6. **Al terminar**: `node merge-tracker.mjs`, mover completadas a "Procesadas" (orden descendente al principio), mostrar tabla resumen:
 7. **Sin procesar**: mostrar al final como lista plana — sin reservar números, sin procesar:
@@ -47,7 +47,7 @@ Process job URLs stored in `data/pipeline.md`. The user adds URLs at any time an
 | PDF | URL points to a PDF, read it directly with the Read tool |
 
 Batch: `node extract-jd.mjs "{URL1}" "{URL2}" --delay-ms 2500`. Returns JSON to stdout
-IF LinkedIn error → verify `node scan-linkedin.mjs --setup`. IF Tecnoempleo error `Cloudflare challenge` → retry later. ELSE mark as `[!]` and continue.
+IF LinkedIn error → verify `node scan-linkedin.mjs --setup`. IF Tecnoempleo error `Cloudflare challenge` → retry later. ELSE mark as `[!]` in pipeline.md for later processing.
 
 ## Automatic numbering
 
